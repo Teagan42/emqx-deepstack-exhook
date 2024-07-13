@@ -151,13 +151,13 @@ class CPAIPipeline:
         )
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            if "detect" in self.pipeline_type:
+            if "recognize" in self.pipeline_type:
                 result = await loop.run_in_executor(
-                    pool, self.inference_api.detect, snapshot  # type: ignore
+                    pool, self.inference_api.recognize, snapshot  # type: ignore
                 )
             else:
                 result = await loop.run_in_executor(
-                    pool, self.inference_api.recognize, snapshot  # type: ignore
+                    pool, self.inference_api.detect, snapshot  # type: ignore
                 )
         inference = CPAIInference.parse(
             {
