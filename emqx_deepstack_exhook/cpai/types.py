@@ -116,9 +116,9 @@ class CPAIPipeline:
     threshold: float
     result_topic: Optional[str]
     filter: Optional[_Program]
-    inference_api: Union[
-        cpai.CodeProjectAIObject, cpai.CodeProjectAIVision, cpai.CodeProjectAIFace
-    ] = field(init=False, repr=False)
+    inference_api: Union[cpai.CodeProjectAIObject, cpai.CodeProjectAIFace] = field(
+        init=False, repr=False
+    )
 
     def __post_init__(self):
         if self.pipeline_type == PIPELINE_OBJECT:
