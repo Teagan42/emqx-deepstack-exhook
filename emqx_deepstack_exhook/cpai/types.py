@@ -146,6 +146,9 @@ class CPAIPipeline:
             and not self.filter.input_value(event.__dict__).first()
         ):
             return None, event
+        logging.getLogger(CPAIPipeline.__name__).info(
+            f"Detect {self.inference_api.detect} Recognize {self.inference_api.recognize}"
+        )
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
             if "detect" in self.pipeline_type:
