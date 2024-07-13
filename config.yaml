@@ -7,10 +7,10 @@ servers:
 pipelines:
   delivery:
     server: cpai
-    model: ipcam-general
-    threshold: 0.1
+    model: delivery
+    threshold: 0.8
     filter: '.label == "car"'
 topics:
-  - subscribe: frigate/+/event/car
+  - subscribe: frigate/events
     pipeline: delivery
 frigate: http://10.0.12.66:5000

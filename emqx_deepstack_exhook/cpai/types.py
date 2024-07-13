@@ -31,6 +31,7 @@ class FrigateEvent:
     camera: str = field(init=True)
     frame_time: Optional[float] = field(default=None, init=True)
     snapshot_time: Optional[float] = field(default=None, init=True)
+    snapshot: Optional[Dict[str, Any]] = field(default_factory=lambda: {}, init=True)
     label: Optional[str] = field(default=None, init=True)
     sub_label: Optional[Tuple[str, float]] = field(default=None, init=True)
     top_score: Optional[float] = field(default=None, init=True)

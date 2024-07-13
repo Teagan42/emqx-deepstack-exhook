@@ -138,8 +138,8 @@ class CPAIProcess:
         self._logger.info(
             f"Using topic {topic} match: {cpai_topic.subscribe} regex: {cpai_topic.topic_pattern}"
         )
-        before_after = json.loads(message.payload.decode("utf8"))
-        if before_after.get("after", None):
+        before_after = json.loads(message.payload)
+        if before_after.get("after", None) is None:
             return None
         event = FrigateEvent(**before_after["after"])
         try:
@@ -148,34 +148,28 @@ class CPAIProcess:
             predictions = {p.label: p for item in inferences for p in item.predictions}
 
             self._logger.info(predictions)
-            new_event = FrigateEvent(
-                **{
-                    **event.__dict__,
-                    "attributes": {
-                        **event.attributes,
-                        **{key: value.confidence for key, value in predictions.items()},
-                    },
-                    "current_attributes": [
-                        *event.current_attributes,
-                        *[
-                            {
-                                "label": value.label,
-                                "score": value.confidence,
-                                "box": [
-                                    value.y_min,
-                                    value.x_min,
-                                    value.y_max,
-                                    value.x_max,
-                                ],
-                            }
-                            for value in predictions.values()
-                        ],
-                    ],
-                }
+            event.attributes.update(
+                {p.label: p.confidence for p in predictions.values()}
             )
-            await self.set_sub_label(new_event)
+            event.current_attributes = [
+                *event.current_attributes,
+                *[
+                    {
+                        "label": value.label,
+                        "score": value.confidence,
+                        "box": [
+                            value.y_min,
+                            value.x_min,
+                            value.y_max,
+                            value.x_max,
+                        ],
+                    }
+                    for value in predictions.values()
+                ],
+            ]
+            await self.set_sub_label(event)
 
-            before_after["after"] = new_event.__dict__
+            before_after["after"] = event.__dict__
             return before_after
         except Exception as exc:
             self._logger.error(

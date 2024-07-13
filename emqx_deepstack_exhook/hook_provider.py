@@ -34,7 +34,7 @@ class HookProvider(HookProviderServicer):
             self._lock.release()
 
     async def OnProviderLoaded(self, request, context):
-        _LOGGER.info("OnProviderLoaded:", request)
+        _LOGGER.info(f"OnProviderLoaded: {request.meta.node}")
         specs = [
             # HookSpec(name="client.connect"),
             # HookSpec(name="client.connack"),
@@ -126,7 +126,7 @@ class HookProvider(HookProviderServicer):
         return EmptySuccess()
 
     async def OnMessagePublish(self, request, context) -> ValuedResponse:
-        print("OnMessagePublish:", request)
+        print(f"OnMessagePublish: {request.message.topic} {request.message.payload}")
         await self._lock.acquire()
         try:
             event = await self._cpai.process_message(
