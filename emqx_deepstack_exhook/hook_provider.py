@@ -51,7 +51,10 @@ class HookProvider(HookProviderServicer):
             # HookSpec(name="session.discarded"),
             # HookSpec(name="session.takenover"),
             # HookSpec(name="session.terminated"),
-            HookSpec(name="message.publish"),
+            HookSpec(
+                name="message.publish",
+                topics=[topic.subscribe for topic in self._cpai.topics],
+            ),
             # HookSpec(name="message.delivered"),
             # HookSpec(name="message.acked"),
             # HookSpec(name="message.dropped")
