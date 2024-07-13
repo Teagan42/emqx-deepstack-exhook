@@ -93,6 +93,7 @@ class CPAIServer:
 class CPAIPipeline:
     name: str
     server: CPAIServer
+    frigate: str
     model: Optional[str]
     threshold: float
     result_topic: Optional[str]
@@ -108,17 +109,78 @@ class CPAIPipeline:
         )
 
     async def infer(
-        self, event: FrigateEvent, snapshot: bytes
-    ) -> Optional[CPAIInference]:
+        self, session: aiohttp.ClientSession, event: FrigateEvent, snapshot: bytes
+    ) -> Tuple[Optional[CPAIInference], FrigateEvent]:
         if (
             self.filter is not None
             and not self.filter.input_value(event.__dict__).first()
         ):
-            return None
+            return None, event
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
             result = await loop.run_in_executor(pool, self.cpai_object.detect, snapshot)
-            return CPAIInference.parse({"predictions": result})
+        inference = CPAIInference.parse({"predictions": result})
+        if len(inference.predictions) == 0:
+            return None, event
+
+        return inference, await self.set_sub_label(
+            session, event, inference.predictions
+        )
+
+    async def set_sub_label(
+        self,
+        session: aiohttp.ClientSession,
+        event: FrigateEvent,
+        predictions: List[CPAIPrediction],
+    ) -> FrigateEvent:
+        if len(predictions) == 0:
+            return event
+        sorted_attributes = sorted(
+            predictions, key=lambda x: x.confidence, reverse=True
+        )
+        top_label = sorted_attributes[0]
+        _, sub_score = event.sub_label or (None, None)
+        if sub_score is None or sub_score < top_label.confidence:
+            async with session.post(
+                f"{self.frigate}/api/events/{event.id}/sub_label",
+                json={
+                    "subLabel": top_label.label,
+                    "subLabelScore": top_label.confidence,
+                },
+            ) as resp:
+                resp.raise_for_status()
+            event.sub_label = (top_label.label, top_label.confidence)
+        attributes = {k: v for k, v in event.attributes.items()}
+        attributes.update(
+            {
+                p.label: p.confidence
+                for p in predictions
+                if p.confidence > attributes[p.label]
+            }
+        )
+        all_attributes = [
+            *event.current_attributes,
+            *[
+                {
+                    "label": p.label,
+                    "score": p.confidence,
+                    "box": [p.y_min, p.x_min, p.y_max, p.x_max],
+                }
+                for p in sorted_attributes
+            ],
+        ]
+
+        def key(a: Dict[str, Any]) -> str:
+            return f"{a['box'][0]} {a['box'][1]} {a['box'][2]}{a['box'][3]}"
+
+        current_attributes: Dict[str, Dict[str, Any]] = {}
+        [
+            current_attributes.update({key(a): a})
+            for a in all_attributes
+            if key(a) not in current_attributes
+        ]
+        event.current_attributes = list(current_attributes.values())
+        return event
 
 
 @dataclass
@@ -158,7 +220,7 @@ class CPAITopic:
         inferences: List[CPAIInference] = []
         for pipeline in self.pipelines:
             try:
-                inference = await pipeline.infer(event, snapshot)
+                inference, event = await pipeline.infer(session, event, snapshot)
                 if not inference or len(inference.predictions) == 0:
                     break
                 inferences.append(inference)

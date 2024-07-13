@@ -53,6 +53,7 @@ class CPAIProcess:
                 threshold=value.threshold,
                 result_topic=value.result_topic,
                 filter=jq.compile(value.filter),
+                frigate=self.frigate,
             )
             for key, value in config.pipelines.items()
             if value.server in self.servers
@@ -113,21 +114,6 @@ class CPAIProcess:
             img.save(image_bytes, format="JPEG")
             return image_bytes.getvalue()
 
-    async def set_sub_label(self, event: FrigateEvent) -> None:
-        if len(event.attributes) == 0:
-            return
-        top_label = sorted(
-            event.current_attributes, key=lambda x: x["score"], reverse=True
-        )[0]
-        async with self._session.post(
-            f"{self.frigate}/api/events/{event.id}/sub_label",
-            json={
-                "subLabel": top_label["label"],
-                "subLabelScore": top_label["score"],
-            },
-        ) as resp:
-            resp.raise_for_status()
-
     async def process_message(
         self, topic: str, message: Message
     ) -> Optional[Dict[str, Any]]:
@@ -144,30 +130,7 @@ class CPAIProcess:
         event = FrigateEvent(**before_after["after"])
         try:
             snapshot = await self.get_snapshot(event)
-            inferences = await cpai_topic.process_event(self._session, event, snapshot)
-            predictions = {p.label: p for item in inferences for p in item.predictions}
-
-            self._logger.info(predictions)
-            event.attributes.update(
-                {p.label: p.confidence for p in predictions.values()}
-            )
-            event.current_attributes = [
-                *event.current_attributes,
-                *[
-                    {
-                        "label": value.label,
-                        "score": value.confidence,
-                        "box": [
-                            value.y_min,
-                            value.x_min,
-                            value.y_max,
-                            value.x_max,
-                        ],
-                    }
-                    for value in predictions.values()
-                ],
-            ]
-            await self.set_sub_label(event)
+            event = await cpai_topic.process_event(self._session, event, snapshot)
 
             before_after["after"] = event.__dict__
             return before_after
