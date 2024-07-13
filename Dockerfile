@@ -4,6 +4,6 @@ VOLUME /config.yaml
 
 COPY . .
 
-RUN python3 setup.py install
+RUN pip3 install .
 
-CMD ['emqx_deepstack_exhook', '/config.yaml']
+CMD ["emqx_deepstack_exhook", "/config.yaml"]

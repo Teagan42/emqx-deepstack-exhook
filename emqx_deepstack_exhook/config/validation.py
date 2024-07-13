@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import Enum
 import re
 
 from typing import Any, Callable, TypeVar, cast, overload
@@ -9,7 +9,7 @@ import voluptuous as vol
 _T = TypeVar("_T")
 
 
-class UrlProtocolSchema(StrEnum):
+class UrlProtocolSchema(Enum):
     """Valid URL protocol schema values."""
 
     HTTP = "http"
