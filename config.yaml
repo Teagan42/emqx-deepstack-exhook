@@ -6,10 +6,21 @@ servers:
     port: 32168
 pipelines:
   delivery:
+    type: object
     server: cpai
     model: delivery
     threshold: 0.8
     filter: '.label == "car"'
+  face:
+    type: face_detect
+    server: cpai
+    threshold: 0.85
+    filter: '.label == "person"'
+  recognize:
+    type: face_recognize
+    server: cpai
+    threshold: 0.85
+    filter: '.label == "person"'
 topics:
   - subscribe: frigate/events
     pipeline: delivery

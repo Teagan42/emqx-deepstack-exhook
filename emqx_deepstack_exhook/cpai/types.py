@@ -3,7 +3,7 @@ import json
 import logging
 import concurrent.futures
 import codeprojectai.core as cpai
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 import re
 import jq
@@ -12,6 +12,12 @@ from jq import _Program
 
 import aiohttp
 
+from emqx_deepstack_exhook.config.const import (
+    PIPELINE_FACE_DETECT,
+    PIPELINE_FACE_RECOGNIZE,
+    PIPELINE_OBJECT,
+    PIPELINE_VISION,
+)
 from emqx_deepstack_exhook.pb2.exhook_pb2 import Message
 
 
@@ -70,7 +76,7 @@ class CPAIPrediction:
 
 @dataclass
 class CPAIInference:
-    predictions: List[CPAIPrediction]
+    predictions: List[CPAIPrediction] = field(init=True)
 
     @classmethod
     def parse(cls, resp: Dict[str, Any]) -> "CPAIInference":
@@ -92,21 +98,34 @@ class CPAIServer:
 @dataclass
 class CPAIPipeline:
     name: str
+    pipeline_type: str
     server: CPAIServer
     frigate: str
     model: Optional[str]
     threshold: float
     result_topic: Optional[str]
     filter: Optional[_Program]
-    cpai_object: cpai.CodeProjectAIObject = field(init=False, repr=False)
+    inference_api: Union[
+        cpai.CodeProjectAIObject, cpai.CodeProjectAIVision, cpai.CodeProjectAIFace
+    ] = field(init=False, repr=False)
 
     def __post_init__(self):
-        self.cpai_object = cpai.CodeProjectAIObject(
-            ip=self.server.host,
-            port=self.server.port,
-            min_confidence=self.threshold,
-            custom_model=self.model or "",
-        )
+        if self.pipeline_type == PIPELINE_OBJECT:
+            self.inference_api = cpai.CodeProjectAIObject(
+                ip=self.server.host,
+                port=self.server.port,
+                min_confidence=self.threshold,
+                custom_model=self.model or "",
+            )
+        elif (
+            self.pipeline_type == PIPELINE_FACE_DETECT
+            or self.pipeline_type == PIPELINE_FACE_RECOGNIZE
+        ):
+            self.inference_api = cpai.CodeProjectAIFace(
+                ip=self.server.host,
+                port=self.server.port,
+                min_confidence=self.threshold,
+            )
 
     async def infer(
         self, session: aiohttp.ClientSession, event: FrigateEvent, snapshot: bytes
@@ -118,11 +137,18 @@ class CPAIPipeline:
             return None, event
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            result = await loop.run_in_executor(pool, self.cpai_object.detect, snapshot)
+            do_infer: Callable[[bytes], List[CPAIPrediction]] = (
+                getattr(self.inference_api, "detect")
+                if "detect" in dir(self.inference_api)
+                else self.inference_api.recognize
+            )  # type: ignore
+            result = await loop.run_in_executor(pool, do_infer, snapshot)
         inference = CPAIInference.parse({"predictions": result})
         if len(inference.predictions) == 0:
             return None, event
-
+        if self.pipeline_type == PIPELINE_FACE_DETECT:
+            for p in inference.predictions:
+                p.label = "face"
         return inference, await self.set_sub_label(
             session, event, inference.predictions
         )

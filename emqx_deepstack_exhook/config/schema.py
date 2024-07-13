@@ -10,6 +10,7 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_PIPELINE_MODEL,
     ATTR_PIPELINE_THRESHOLD,
     ATTR_PIPELINE_RESULT_TOPIC,
+    ATTR_PIPELINE_TYPE,
     ATTR_PIPELINES,
     ATTR_SERVER_HOST,
     ATTR_SERVER_PORT,
@@ -21,6 +22,10 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_FRIGATE_HOST,
     ATTR_FRIGATE_PORT,
     ATTR_FRIGATE,
+    PIPELINE_FACE_DETECT,
+    PIPELINE_FACE_RECOGNIZE,
+    PIPELINE_OBJECT,
+    PIPELINE_VISION,
 )
 from emqx_deepstack_exhook.config.validation import (
     ensure_list,
@@ -70,6 +75,9 @@ SCHEMA_TOPIC = vol.Schema(
 SCHEMA_PIPELINE = vol.Schema(
     {
         vol.Required(ATTR_PIPELINE_SERVER): slugify,
+        vol.Required(ATTR_PIPELINE_TYPE): vol.Or(
+            PIPELINE_FACE_DETECT, PIPELINE_FACE_RECOGNIZE, PIPELINE_OBJECT
+        ),
         vol.Optional(ATTR_PIPELINE_MODEL): string,
         vol.Optional(ATTR_PIPELINE_THRESHOLD, default=0.7): small_float,
         vol.Optional(ATTR_PIPELINE_RESULT_TOPIC): valid_topic,

@@ -48,6 +48,7 @@ class CPAIProcess:
         self.pipelines = {
             key: CPAIPipeline(
                 key,
+                pipeline_type=value.pipeline_type,
                 server=self.servers[value.server],
                 model=value.model,
                 threshold=value.threshold,

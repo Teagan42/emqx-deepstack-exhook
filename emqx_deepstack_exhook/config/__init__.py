@@ -9,6 +9,7 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_PIPELINE_RESULT_TOPIC,
     ATTR_PIPELINE_SERVER,
     ATTR_PIPELINE_THRESHOLD,
+    ATTR_PIPELINE_TYPE,
     ATTR_PIPELINES,
     ATTR_SERVER_HOST,
     ATTR_SERVER_PORT,
@@ -35,6 +36,7 @@ class TopicConfig:
 @dataclass
 class PipelineConfig:
     server: str
+    pipeline_type: str
     model: Optional[str]
     threshold: float
     result_topic: Optional[str]
@@ -57,6 +59,7 @@ class Config:
             pipelines={
                 key: PipelineConfig(
                     server=value[ATTR_PIPELINE_SERVER],
+                    pipeline_type=value[ATTR_PIPELINE_TYPE],
                     model=value.get(ATTR_PIPELINE_MODEL, None),
                     threshold=value[ATTR_PIPELINE_THRESHOLD],
                     result_topic=value.get(ATTR_PIPELINE_RESULT_TOPIC, None),

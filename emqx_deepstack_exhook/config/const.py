@@ -18,6 +18,12 @@ ATTR_PIPELINE_MODEL = "model"
 ATTR_PIPELINE_THRESHOLD = "threshold"
 ATTR_PIPELINE_RESULT_TOPIC = "result_topic"
 ATTR_PIPELINE_FILTER = "filter"
+ATTR_PIPELINE_TYPE = "type"
+
+PIPELINE_FACE_DETECT = "face_detect"
+PIPELINE_FACE_RECOGNIZE = "face_recognize"
+PIPELINE_OBJECT = "object"
+PIPELINE_VISION = "vision"
 
 ATTR_TOPICS = "topics"
 ATTR_TOPIC_TOPIC = "subscribe"
