@@ -2,7 +2,7 @@ import json
 import logging
 import io
 from PIL import Image
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 import jq
 
 import aiohttp
@@ -130,13 +130,13 @@ class CPAIProcess:
 
     async def process_message(
         self, topic: str, message: Message
-    ) -> Dict[str, FrigateEvent]:
-        before_after = json.loads(message.payload.decode("utf8"))
-        event = FrigateEvent(**before_after["after"])
+    ) -> Optional[Dict[str, Any]]:
         cpai_topic = self.find_topic(topic)
         if cpai_topic is None:
             self._logger.warn("Unable to match topic to pipeline: %s", topic)
-            return before_after
+            return None
+        before_after = json.loads(message.payload.decode("utf8"))
+        event = FrigateEvent(**before_after["after"])
         try:
             snapshot = await self.get_snapshot(event)
             inferences = await cpai_topic.process_event(self._session, event, snapshot)
@@ -176,4 +176,4 @@ class CPAIProcess:
             self._logger.error(
                 "Error processing message on %s: %s" % (topic, str(exc)), exc_info=exc
             )
-            return before_after
+            return None

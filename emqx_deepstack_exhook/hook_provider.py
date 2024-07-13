@@ -129,11 +129,12 @@ class HookProvider(HookProviderServicer):
             event = await self._cpai.process_message(
                 request.message.topic, request.message
             )
+            if event is None:
+                return ValuedResponse(type=ValuedResponse.IGNORE)
             nmsg = request.message
             nmsg.payload = json.dumps(event).encode("utf-8")
 
-            reply = ValuedResponse(type=ValuedResponse.CONTINUE, message=nmsg)
-            return reply
+            return ValuedResponse(type=ValuedResponse.CONTINUE, message=nmsg)
         except Exception as exc:
             self._logger.error(f"Error processing message: {str(exc)}", exc_info=exc)
             return ValuedResponse(type=ValuedResponse.IGNORE, message=request.message)
