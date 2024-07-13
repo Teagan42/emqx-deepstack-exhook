@@ -1,0 +1,15 @@
+bind: 0.0.0.0:9000
+threads: 5
+servers:
+  cpai:
+    host: 10.0.10.12
+    port: 32168
+pipelines:
+  delivery:
+    server: cpai
+    model: ipcam-general
+    threshold: 0.8
+topics:
+  - subscribe: frigate/+/event/car
+    pipeline: delivery
+frigate: http://10.0.12.66:5000

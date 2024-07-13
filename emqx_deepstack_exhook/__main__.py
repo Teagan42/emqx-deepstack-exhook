@@ -13,28 +13,13 @@
 # limitations under the License.
 """The Python implementation of the GRPC exhook server."""
 
-from concurrent import futures
-import logging
-from multiprocessing.sharedctypes import Value
+import tracemalloc
+import asyncio
 
-import grpc
+from emqx_deepstack_exhook.serve import cli, serve
 
-from emqx_deepstack_exhook.hook_provider import HookProvider
-
-from emqx_deepstack_exhook.pb2.exhook_pb2_grpc import add_HookProviderServicer_to_server
+tracemalloc.start()
 
 
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    add_HookProviderServicer_to_server(HookProvider(), server)
-    server.add_insecure_port('[::]:9000')
-    server.start()
-
-    print("Started gRPC server on [::]:9000")
-
-    server.wait_for_termination()
-
-
-if __name__ == '__main__':
-    logging.basicConfig()
-    serve()
+if __name__ == "__main__":
+    asyncio.run(cli("config.yaml"))
