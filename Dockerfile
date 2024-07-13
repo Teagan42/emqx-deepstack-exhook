@@ -1,7 +1,9 @@
 FROM python:3.10
 
+VOLUME /config.yaml
+
 COPY . .
 
-RUN python3 -m pip install -r requirements.txt
+RUN python3 setup.py install
 
-CMD ['python3', '-m', 'emqx_deepstack_exhook']
+CMD ['emqx_deepstack_exhook', '/config.yaml']
