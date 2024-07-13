@@ -135,6 +135,9 @@ class CPAIProcess:
         if cpai_topic is None:
             self._logger.warn("Unable to match topic to pipeline: %s", topic)
             return None
+        self._logger.info(
+            f"Using topic {topic} match: {cpai_topic.subscribe} regex: {cpai_topic.topic_pattern}"
+        )
         before_after = json.loads(message.payload.decode("utf8"))
         if before_after.get("after", None):
             return None
