@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import concurrent.futures
-from codeprojectai.core import process_image, get_stored_faces, CodeProjectAIObject
+import codeprojectai.core as cpai
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 import re
@@ -20,22 +20,6 @@ from emqx_deepstack_exhook.config.const import (
 )
 from emqx_deepstack_exhook.pb2.exhook_pb2 import Message
 
-URL_BASE_VISION = "http://{ip}:{port}/v1/vision"
-URL_CUSTOM = "/custom/{custom_model}"
-URL_OBJECT_DETECTION = "/detection"
-URL_FACE_DETECTION = "/face"
-URL_FACE_REGISTER = "/face/register"
-URL_FACE_RECOGNIZE = "/face/recognize"
-URL_FACE_LIST = "/face/list"
-DEFAULT_TIMEOUT = 10  # seconds
-DEFAULT_IP = "localhost"
-DEFAULT_PORT = 32168
-DEFAULT_MIN_CONFIDENCE = 0.45
-
-## HTTP codes
-HTTP_OK = 200
-BAD_URL = 404
-
 
 def apply_anchors(pattern: str) -> str:
     return f"^{pattern}$"
@@ -45,78 +29,6 @@ class InferenceError(Exception):
     def __init__(self, *args: object, inferences: List["CPAIInference"]) -> None:
         super().__init__(*args)
         self.inferences = inferences
-
-
-class CodeProjectAIException(Exception):
-    pass
-
-
-class CodeProjectAIFace:
-    """Work with objects"""
-
-    def __init__(
-        self,
-        ip: str = DEFAULT_IP,
-        port: int = DEFAULT_PORT,
-        timeout: int = DEFAULT_TIMEOUT,
-        min_confidence: float = DEFAULT_MIN_CONFIDENCE,
-    ):
-        self.port = port
-        self.timeout = timeout
-        self.min_confidence = min_confidence
-
-        self._url_base = URL_BASE_VISION.format(ip=ip, port=port)
-        self._url_detect = self._url_base + URL_FACE_DETECTION
-        self._url_recognize = self._url_base + URL_FACE_RECOGNIZE
-        self._url_register = self._url_base + URL_FACE_REGISTER
-        self._url_face_list = self._url_base + URL_FACE_LIST
-
-    def detect(self, image_bytes: bytes):
-        """Process image_bytes and detect."""
-        response = process_image(
-            url=self._url_detect,
-            image_bytes=image_bytes,
-            min_confidence=self.min_confidence,
-            timeout=self.timeout,
-        )
-        return response["predictions"]
-
-    def register(self, name: str, image_bytes: bytes):
-        """
-        Register a face name to a file.
-        """
-        response = process_image(
-            url=self._url_register,
-            image_bytes=image_bytes,
-            min_confidence=self.min_confidence,
-            timeout=self.timeout,
-            data={"userid": name},
-        )
-
-        if response["success"] == True:
-            return response["message"]
-
-        elif response["success"] == False:
-            error = response["error"]
-            raise CodeProjectAIException(
-                f"CodeProject.AI Server raised an error registering a face: {error}"
-            )
-
-    def recognize(self, image_bytes: bytes):
-        """Process image_bytes, performing recognition."""
-        response = process_image(
-            url=self._url_recognize,
-            image_bytes=image_bytes,
-            min_confidence=self.min_confidence,
-            timeout=self.timeout,
-        )
-
-        return response["predictions"]
-
-    def get_registered_faces(self):
-        """Get the name of the registered faces"""
-        response = get_stored_faces(url=self._url_face_list, timeout=self.timeout)
-        return response["faces"]  # type: ignore
 
 
 @dataclass
@@ -204,13 +116,13 @@ class CPAIPipeline:
     threshold: float
     result_topic: Optional[str]
     filter: Optional[_Program]
-    inference_api: Union[CodeProjectAIObject, CodeProjectAIFace] = field(
+    inference_api: Union[cpai.CodeProjectAIObject, cpai.CodeProjectAIFace] = field(
         init=False, repr=False
     )
 
     def __post_init__(self):
         if self.pipeline_type == PIPELINE_OBJECT:
-            self.inference_api = CodeProjectAIObject(
+            self.inference_api = cpai.CodeProjectAIObject(
                 ip=self.server.host,
                 port=self.server.port,
                 min_confidence=self.threshold,
@@ -220,7 +132,7 @@ class CPAIPipeline:
             self.pipeline_type == PIPELINE_FACE_DETECT
             or self.pipeline_type == PIPELINE_FACE_RECOGNIZE
         ):
-            self.inference_api = CodeProjectAIFace(
+            self.inference_api = cpai.CodeProjectAIFace(
                 ip=self.server.host,
                 port=self.server.port,
                 min_confidence=self.threshold,
