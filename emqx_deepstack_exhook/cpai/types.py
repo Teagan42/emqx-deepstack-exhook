@@ -79,10 +79,21 @@ class CPAIInference:
     predictions: List[CPAIPrediction] = field(init=True)
 
     @classmethod
-    def parse(cls, resp: Dict[str, Any]) -> "CPAIInference":
+    def parse(cls, resp: Dict[str, Any], label="") -> "CPAIInference":
         return CPAIInference(
             predictions=[
-                CPAIPrediction(**prediction)
+                CPAIPrediction(
+                    confidence=prediction["confidence"],
+                    label=(
+                        label
+                        if prediction.get("label", None) is None
+                        else prediction.get("label", None)
+                    ),
+                    y_min=prediction["y_min"],
+                    x_min=prediction["x_min"],
+                    y_max=prediction["y_max"],
+                    x_max=prediction["x_max"],
+                )
                 for prediction in resp.get("predictions", [])
             ],
         )
@@ -139,11 +150,17 @@ class CPAIPipeline:
         with concurrent.futures.ThreadPoolExecutor() as pool:
             do_infer: Callable[[bytes], List[CPAIPrediction]] = (
                 getattr(self.inference_api, "detect")
-                if "detect" in dir(self.inference_api)
+                if "detect" in self.pipeline_type
                 else self.inference_api.recognize
             )  # type: ignore
             result = await loop.run_in_executor(pool, do_infer, snapshot)
-        inference = CPAIInference.parse({"predictions": result})
+        inference = CPAIInference.parse(
+            {
+                "predictions": result,
+                "label": "face" if "face" in self.pipeline_type else "",
+            }
+        )
+        logging.getLogger("CPAIPipeline.infer").warn(f"RESULTS {inference}")
         if len(inference.predictions) == 0:
             return None, event
         if self.pipeline_type == PIPELINE_FACE_DETECT:
@@ -181,7 +198,7 @@ class CPAIPipeline:
             {
                 p.label: p.confidence
                 for p in predictions
-                if p.confidence > attributes[p.label]
+                if p.confidence > attributes.get(p.label, 0.0)
             }
         )
         all_attributes = [
@@ -213,6 +230,7 @@ class CPAIPipeline:
 class CPAITopic:
     subscribe: str
     pipelines: List[CPAIPipeline]
+    filter: Optional[_Program]
     topic_pattern: re.Pattern = field(init=False)
     _logger: logging.Logger = field(
         default=logging.getLogger("CPAITopic"), init=False, repr=False
@@ -241,14 +259,15 @@ class CPAITopic:
 
     async def process_event(
         self, session: aiohttp.ClientSession, event: FrigateEvent, snapshot: bytes
-    ) -> List[CPAIInference]:
+    ) -> Tuple[FrigateEvent, bool]:
         logger = self._logger.getChild(self.subscribe)
         inferences: List[CPAIInference] = []
+        logger.info(self.pipelines)
         for pipeline in self.pipelines:
             try:
                 inference, event = await pipeline.infer(session, event, snapshot)
                 if not inference or len(inference.predictions) == 0:
-                    break
+                    return event, False
                 inferences.append(inference)
             except Exception as exc:
                 logger.error(
@@ -260,4 +279,4 @@ class CPAITopic:
                     inferences=inferences,
                 ) from exc
 
-        return inferences
+        return event, True

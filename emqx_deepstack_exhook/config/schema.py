@@ -16,6 +16,7 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_SERVER_PORT,
     ATTR_SERVERS,
     ATTR_THREADS,
+    ATTR_TOPIC_FILTER,
     ATTR_TOPIC_PIPELINE,
     ATTR_TOPIC_TOPIC,
     ATTR_TOPICS,
@@ -69,6 +70,7 @@ SCHEMA_TOPIC = vol.Schema(
     {
         vol.Required(ATTR_TOPIC_TOPIC): valid_subscribe_topic,
         vol.Required(ATTR_TOPIC_PIPELINE): vol.All(ensure_list, [slugify]),
+        vol.Optional(ATTR_TOPIC_FILTER): string,
     }
 )
 

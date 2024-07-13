@@ -8,20 +8,26 @@ pipelines:
   delivery:
     type: object
     server: cpai
-    model: delivery
+    model: ipcam-general
     threshold: 0.8
     filter: '.label == "car"'
   face:
     type: face_detect
     server: cpai
-    threshold: 0.85
+    threshold: 0.8
     filter: '.label == "person"'
   recognize:
     type: face_recognize
     server: cpai
-    threshold: 0.85
+    threshold: 0.8
     filter: '.label == "person"'
 topics:
   - subscribe: frigate/events
     pipeline: delivery
+    filter: '.label == "car"'
+  - subscribe: frigate/events
+    pipeline:
+      - face
+      - recognize
+    filter: '.label == "person"'
 frigate: http://10.0.12.66:5000

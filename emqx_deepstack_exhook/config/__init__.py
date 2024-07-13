@@ -15,6 +15,7 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_SERVER_PORT,
     ATTR_SERVERS,
     ATTR_THREADS,
+    ATTR_TOPIC_FILTER,
     ATTR_TOPIC_PIPELINE,
     ATTR_TOPIC_TOPIC,
     ATTR_TOPICS,
@@ -31,6 +32,7 @@ class ServerConfig:
 class TopicConfig:
     subscribe: str
     pipelines: List[str]
+    filter: Optional[str]
 
 
 @dataclass
@@ -71,6 +73,7 @@ class Config:
                 TopicConfig(
                     subscribe=topic[ATTR_TOPIC_TOPIC],
                     pipelines=topic[ATTR_TOPIC_PIPELINE],
+                    filter=topic.get(ATTR_TOPIC_FILTER, None),
                 )
                 for topic in config[ATTR_TOPICS]
             ],
