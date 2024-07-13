@@ -8,7 +8,8 @@ pipelines:
   delivery:
     server: cpai
     model: ipcam-general
-    threshold: 0.8
+    threshold: 0.1
+    filter: '.label == "car"'
 topics:
   - subscribe: frigate/+/event/car
     pipeline: delivery

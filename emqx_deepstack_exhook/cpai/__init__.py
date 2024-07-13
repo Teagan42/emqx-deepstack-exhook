@@ -3,7 +3,7 @@ import logging
 import io
 from PIL import Image
 from typing import Dict, Optional
-import itertools
+import jq
 
 import aiohttp
 from emqx_deepstack_exhook.config import Config
@@ -20,10 +20,12 @@ from emqx_deepstack_exhook.pb2.exhook_pb2 import Message
 class CPAIProcess:
     known_topics: Dict[str, CPAITopic]
 
-    def __init__(self, config: Config) -> None:
+    def __init__(
+        self, config: Config, session: Optional[aiohttp.ClientSession] = None
+    ) -> None:
         self.known_topics: Dict[str, CPAITopic] = {}
         self._logger = logging.getLogger(CPAIProcess.__name__)
-        self._session = aiohttp.ClientSession()
+        self._session = session or aiohttp.ClientSession()
         self.frigate = config.frigate
         self.servers = {
             key: CPAIServer(key, value.host, value.port)
@@ -50,6 +52,7 @@ class CPAIProcess:
                 model=value.model,
                 threshold=value.threshold,
                 result_topic=value.result_topic,
+                filter=jq.compile(value.filter),
             )
             for key, value in config.pipelines.items()
             if value.server in self.servers
@@ -125,12 +128,15 @@ class CPAIProcess:
         ) as resp:
             resp.raise_for_status()
 
-    async def process_message(self, topic: str, message: Message) -> FrigateEvent:
-        event = FrigateEvent(**json.loads(message.payload.decode("utf8")))
+    async def process_message(
+        self, topic: str, message: Message
+    ) -> Dict[str, FrigateEvent]:
+        before_after = json.loads(message.payload.decode("utf8"))
+        event = FrigateEvent(**before_after["after"])
         cpai_topic = self.find_topic(topic)
         if cpai_topic is None:
             self._logger.warn("Unable to match topic to pipeline: %s", topic)
-            return event
+            return before_after
         try:
             snapshot = await self.get_snapshot(event)
             inferences = await cpai_topic.process_event(self._session, event, snapshot)
@@ -163,9 +169,11 @@ class CPAIProcess:
                 }
             )
             await self.set_sub_label(new_event)
-            return new_event
+
+            before_after["after"] = new_event.__dict__
+            return before_after
         except Exception as exc:
             self._logger.error(
                 "Error processing message on %s: %s" % (topic, str(exc)), exc_info=exc
             )
-            return event
+            return before_after

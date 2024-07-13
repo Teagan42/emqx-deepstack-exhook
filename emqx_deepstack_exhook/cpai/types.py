@@ -1,10 +1,13 @@
 import asyncio
+import json
 import logging
 import concurrent.futures
 import codeprojectai.core as cpai
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import re
+import jq
+from jq import _Program
 
 
 import aiohttp
@@ -92,6 +95,7 @@ class CPAIPipeline:
     model: Optional[str]
     threshold: float
     result_topic: Optional[str]
+    filter: Optional[_Program]
     cpai_object: cpai.CodeProjectAIObject = field(init=False, repr=False)
 
     def __post_init__(self):
@@ -103,12 +107,13 @@ class CPAIPipeline:
         )
 
     async def infer(
-        self, session: aiohttp.ClientSession, snapshot: bytes
-    ) -> CPAIInference:
-        data = aiohttp.FormData()
-        data.add_field(
-            "image1", snapshot, filename="snapshot.jpg", content_type="image/jpg"
-        )
+        self, event: FrigateEvent, snapshot: bytes
+    ) -> Optional[CPAIInference]:
+        if (
+            self.filter is not None
+            and not self.filter.input_value(event.__dict__).first()
+        ):
+            return None
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
             result = await loop.run_in_executor(pool, self.cpai_object.detect, snapshot)
@@ -152,7 +157,7 @@ class CPAITopic:
         inferences: List[CPAIInference] = []
         for pipeline in self.pipelines:
             try:
-                inference = await pipeline.infer(session, snapshot)
+                inference = await pipeline.infer(event, snapshot)
                 if not inference or len(inference.predictions) == 0:
                     break
                 inferences.append(inference)

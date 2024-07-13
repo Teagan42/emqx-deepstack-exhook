@@ -15,8 +15,11 @@ def run():
             emqx_deepstack_exhook.pb2.exhook_pb2.MessagePublishRequest(
                 message={
                     "topic": "frigate/driveway/event/car",
-                    "payload": b'{"id": "1720860695.72587-ja8pzq", "camera": "driveway", "label": "car"}',
+                    "payload": b'{"before": {}, "after": {"id": "1720860695.72587-ja8pzq", "camera": "driveway", "label": "car"}}',
                 }
             )
         )
     print(response.message)
+
+
+run()

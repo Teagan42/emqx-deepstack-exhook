@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 from emqx_deepstack_exhook.cpai import CPAIProcess
@@ -17,7 +18,20 @@ class HookProvider(HookProviderServicer):
 
     def __init__(self, *args, cpai: CPAIProcess):
         super().__init__(*args)
-        self._cpai = cpai
+        self._logger = logging.getLogger(HookProvider.__name__)
+        self._cpai: CPAIProcess = cpai
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    async def set_cpai(self, cpai: CPAIProcess):
+        await self._lock.acquire()
+        try:
+            prev = self._cpai
+            self._cpai = cpai
+
+        except Exception as exc:
+            self._logger.error(f"Error assigning CPAI: {str(exc)}", exc_info=exc)
+        finally:
+            self._lock.release()
 
     async def OnProviderLoaded(self, request, context):
         _LOGGER.info("OnProviderLoaded:", request)
@@ -44,31 +58,31 @@ class HookProvider(HookProviderServicer):
         ]
         return LoadedResponse(hooks=specs)
 
-    async def OnProviderUnloaded(self, request, context):
+    async def OnProviderUnloaded(self, request, context) -> EmptySuccess:
         print("OnProviderUnloaded:", request)
         return EmptySuccess()
 
-    async def OnClientConnect(self, request, context):
+    async def OnClientConnect(self, request, context) -> EmptySuccess:
         print("OnClientConnect:", request)
         return EmptySuccess()
 
-    async def OnClientConnack(self, request, context):
+    async def OnClientConnack(self, request, context) -> EmptySuccess:
         print("OnClientConnack:", request)
         return EmptySuccess()
 
-    async def OnClientConnected(self, request, context):
+    async def OnClientConnected(self, request, context) -> EmptySuccess:
         print("OnClientConnected:", request)
         return EmptySuccess()
 
-    async def OnClientDisconnected(self, request, context):
+    async def OnClientDisconnected(self, request, context) -> EmptySuccess:
         print("OnClientDisconnected:", request)
         return EmptySuccess()
 
-    async def OnClientAuthenticate(self, request, context):
+    async def OnClientAuthenticate(self, request, context) -> ValuedResponse:
         print("OnClientAuthenticate:", request)
         return ValuedResponse(type=ValuedResponse.ResponsedType.IGNORE)
 
-    async def OnClientAuthorize(self, request, context):
+    async def OnClientAuthorize(self, request, context) -> ValuedResponse:
         print("OnClientAuthorize:", request)
         return ValuedResponse(type=ValuedResponse.ResponsedType.IGNORE)
 
@@ -76,55 +90,64 @@ class HookProvider(HookProviderServicer):
         print("OnClientSubscribe:", request)
         return EmptySuccess()
 
-    async def OnClientUnsubscribe(self, request, context):
+    async def OnClientUnsubscribe(self, request, context) -> EmptySuccess:
         print("OnClientUnsubscribe:", request)
         return EmptySuccess()
 
-    async def OnSessionCreated(self, request, context):
+    async def OnSessionCreated(self, request, context) -> EmptySuccess:
         print("OnSessionCreated:", request)
         return EmptySuccess()
 
-    async def OnSessionSubscribed(self, request, context):
+    async def OnSessionSubscribed(self, request, context) -> EmptySuccess:
         print("OnSessionSubscribed:", request)
         return EmptySuccess()
 
-    async def OnSessionUnsubscribed(self, request, context):
+    async def OnSessionUnsubscribed(self, request, context) -> EmptySuccess:
         print("OnSessionUnsubscribed:", request)
         return EmptySuccess()
 
-    async def OnSessionResumed(self, request, context):
+    async def OnSessionResumed(self, request, context) -> EmptySuccess:
         print("OnSessionResumed:", request)
         return EmptySuccess()
 
-    async def OnSessionDiscarded(self, request, context):
+    async def OnSessionDiscarded(self, request, context) -> EmptySuccess:
         print("OnSessionDiscarded:", request)
         return EmptySuccess()
 
-    async def OnSessionTakenover(self, request, context):
+    async def OnSessionTakenover(self, request, context) -> EmptySuccess:
         print("OnSessionTakenover:", request)
         return EmptySuccess()
 
-    async def OnSessionTerminated(self, request, context):
+    async def OnSessionTerminated(self, request, context) -> EmptySuccess:
         print("OnSessionTerminated:", request)
         return EmptySuccess()
 
     async def OnMessagePublish(self, request, context) -> ValuedResponse:
         print("OnMessagePublish:", request)
-        event = await self._cpai.process_message(request.message.topic, request.message)
-        nmsg = request.message
-        nmsg.payload = json.dumps(event.__dict__).encode("utf-8")
+        await self._lock.acquire()
+        try:
+            event = await self._cpai.process_message(
+                request.message.topic, request.message
+            )
+            nmsg = request.message
+            nmsg.payload = json.dumps(event).encode("utf-8")
 
-        reply = ValuedResponse(type="CONTINUE", message=nmsg)
-        return reply
+            reply = ValuedResponse(type=ValuedResponse.CONTINUE, message=nmsg)
+            return reply
+        except Exception as exc:
+            self._logger.error(f"Error processing message: {str(exc)}", exc_info=exc)
+            return ValuedResponse(type=ValuedResponse.IGNORE, message=request.message)
+        finally:
+            self._lock.release()
 
-    async def OnMessageDelivered(self, request, context):
+    async def OnMessageDelivered(self, request, context) -> EmptySuccess:
         print("OnMessageDelivered:", request)
         return EmptySuccess()
 
-    async def OnMessageDropped(self, request, context):
+    async def OnMessageDropped(self, request, context) -> EmptySuccess:
         print("OnMessageDropped:", request)
         return EmptySuccess()
 
-    async def OnMessageAcked(self, request, context):
+    async def OnMessageAcked(self, request, context) -> EmptySuccess:
         print("OnMessageAcked:", request)
         return EmptySuccess()

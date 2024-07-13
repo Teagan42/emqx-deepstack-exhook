@@ -5,6 +5,7 @@ from emqx_deepstack_exhook.config.const import (
     ATTR_BIND,
     ATTR_BIND_IP,
     ATTR_BIND_PORT,
+    ATTR_PIPELINE_FILTER,
     ATTR_PIPELINE_SERVER,
     ATTR_PIPELINE_MODEL,
     ATTR_PIPELINE_THRESHOLD,
@@ -72,6 +73,7 @@ SCHEMA_PIPELINE = vol.Schema(
         vol.Optional(ATTR_PIPELINE_MODEL): string,
         vol.Optional(ATTR_PIPELINE_THRESHOLD, default=0.7): small_float,
         vol.Optional(ATTR_PIPELINE_RESULT_TOPIC): valid_topic,
+        vol.Optional(ATTR_PIPELINE_FILTER): string,
     }
 )
 
