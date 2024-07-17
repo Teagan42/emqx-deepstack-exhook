@@ -1,12 +1,10 @@
 import asyncio
-import json
 import logging
 import concurrent.futures
 import codeprojectai.core as cpai
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 import re
-import jq
 from jq import _Program
 
 
@@ -16,7 +14,6 @@ from emqx_deepstack_exhook.config.const import (
     PIPELINE_FACE_DETECT,
     PIPELINE_FACE_RECOGNIZE,
     PIPELINE_OBJECT,
-    PIPELINE_VISION,
 )
 from emqx_deepstack_exhook.pb2.exhook_pb2 import Message
 
