@@ -51,9 +51,12 @@ class FrigateEvent:
     thumbnail: Any | None = field(default=None, init=True)
     has_snapshot: bool = field(default=False, init=True)
     has_clip: bool = field(default=False, init=True)
+    active: Optional[bool] = field(default=None, init=True)
     stationary: Optional[bool] = field(default=None, init=True)
     motionless_count: Optional[int] = field(default=None, init=True)
     position_changes: Optional[int] = field(default=None, init=True)
+    pending_loitering: Optional[bool] = field(default=None, init=True)
+    max_severity: Optional[str] = field(default=None, init=True)
     attributes: Dict[str, float] = field(default_factory=lambda: {}, init=True)
     current_attributes: List[Dict[str, Any]] = field(
         default_factory=lambda: [],

@@ -30,4 +30,4 @@ topics:
       - face
       - recognize
     filter: '.label == "person"'
-frigate: http://10.0.12.66:5000
+frigate: http://10.0.10.12:5000
